@@ -54,4 +54,13 @@ Tarayıcınızda `http://localhost:3000` adresine giderek projeyi görüntüleye
 Bu proje geliştirilmeye açıktır. Herhangi bir hata bulursanız veya özellik eklemek isterseniz, lütfen bir "Issue" açın veya "Pull Request" gönderin.
 
 ---
-*Geliştirici:* Bero 👑
+
+<div align="center">
+  <b>Geliştirici:</b> Berat Demirbaş<br><br>
+  <a href="https://www.linkedin.com/in/berat-demirbas/">
+    <img src="https://img.shields.io/badge/LinkedIn-blue?style=for-the-badge&logo=linkedin&logoColor=white" alt="LinkedIn Badge"/>
+  </a>
+  <a href="https://github.com/Beratdmrbs">
+    <img src="https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white" alt="GitHub Badge"/>
+  </a>
+</div>
