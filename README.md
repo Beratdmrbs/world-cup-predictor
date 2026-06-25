@@ -1,5 +1,7 @@
 # 🏆 Dünya Kupası Tahmin Ligi (World Cup Predictor)
 
+🚀 **[CANLI DEMO İÇİN TIKLAYIN](https://world-cup-predictor.vercel.app)** *(Link Vercel üzerinden çalışmaktadır)*
+
 Dünya Kupası Tahmin Ligi, arkadaşlarınızla kendi aranızda kapalı ligler oluşturup maç sonuçlarını ve gol farklarını tahmin ederek yarışabileceğiniz, modern web teknolojileri ile geliştirilmiş bir skor tahmin oyunudur.
 
 ## 🌟 Özellikler
