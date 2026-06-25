@@ -58,7 +58,7 @@ export default function Dashboard() {
   const fetchPredictions = async (memberId: string) => {
     const { data } = await supabase
       .from('predictions')
-      .select('match_id, predicted_winner')
+      .select('match_id, predicted_winner, predicted_margin')
       .eq('member_id', memberId);
     
     if (data) {
