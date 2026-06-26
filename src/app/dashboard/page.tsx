@@ -159,7 +159,11 @@ export default function Dashboard() {
     setSaving(true);
     setSaveSuccess(false);
     
-    const upserts = Object.keys(predictions).map(matchId => ({
+    const upserts = Object.keys(predictions).filter(matchId => {
+      // Sadece saati geçmemiş olan maçları kaydetmeye izin ver
+      const match = matches.find(m => m.id === matchId);
+      return match && new Date(match.commence_time).getTime() > Date.now();
+    }).map(matchId => ({
       member_id: session.memberId,
       match_id: matchId,
       predicted_winner: predictions[matchId].winner,
@@ -251,7 +255,9 @@ export default function Dashboard() {
           ) : (
             matches
               .filter(match => getRoundName(match.commence_time) === getRoundName(matches[0].commence_time))
-              .map(match => (
+              .map(match => {
+                const matchStarted = new Date(match.commence_time).getTime() < Date.now();
+                return (
               <div key={match.id} className={`glass-panel ${styles.matchCard}`}>
                 <div className={styles.matchHeader}>
                   <span>{getRoundName(match.commence_time)}</span>
@@ -263,15 +269,23 @@ export default function Dashboard() {
                   <span>{match.away_team}</span>
                 </div>
                 
-                {savedPredictions[match.id] ? (
+                {savedPredictions[match.id] || matchStarted ? (
                   <div className={styles.lockedPrediction}>
-                    <div className={styles.lockedHeader}>TAHMİNİNİZ KAYDEDİLDİ</div>
+                    <div className={styles.lockedHeader} style={{ color: matchStarted && !savedPredictions[match.id] ? '#ff4444' : '' }}>
+                      {matchStarted ? 'MAÇ BAŞLADI - KİLİTLENDİ' : 'TAHMİNİNİZ KAYDEDİLDİ'}
+                    </div>
                     <div className={styles.lockedBody}>
-                      <span className={styles.lockedWinner}>
-                        {savedPredictions[match.id].winner === 'Draw' ? 'Beraberlik' : `${savedPredictions[match.id].winner} Kazanır`}
-                      </span>
-                      {savedPredictions[match.id].winner !== 'Draw' && (
-                        <span className={styles.lockedMargin}>{savedPredictions[match.id].margin || 1} Fark</span>
+                      {savedPredictions[match.id] ? (
+                        <>
+                          <span className={styles.lockedWinner}>
+                            {savedPredictions[match.id].winner === 'Draw' ? 'Beraberlik' : `${savedPredictions[match.id].winner} Kazanır`}
+                          </span>
+                          {savedPredictions[match.id].winner !== 'Draw' && (
+                            <span className={styles.lockedMargin}>{savedPredictions[match.id].margin || 1} Fark</span>
+                          )}
+                        </>
+                      ) : (
+                        <span className={styles.lockedWinner} style={{color: '#ff4444'}}>Tahmin Yapmadınız (0 Puan)</span>
                       )}
                     </div>
                     
@@ -333,7 +347,7 @@ export default function Dashboard() {
                   </>
                 )}
               </div>
-            ))
+            )})
           )}
 
           {/* Toplu Kaydetme Butonu */}
