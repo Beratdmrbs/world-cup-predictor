@@ -29,6 +29,7 @@ const getRoundName = (dateStr: string) => {
 
 export default function Dashboard() {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'completed'>('upcoming');
   const [session, setSession] = useState<any>(null);
   const [leagueCode, setLeagueCode] = useState<string>('');
   const [matches, setMatches] = useState<Match[]>([]);
@@ -122,7 +123,8 @@ export default function Dashboard() {
             username: user.username,
             winner: p.predicted_winner,
             margin: p.predicted_margin,
-            isMe: user.id === currentMemberId
+            isMe: user.id === currentMemberId,
+            points: p.points_earned || 0
          });
       });
       setLeaguePredictions(lPreds);
@@ -193,8 +195,7 @@ export default function Dashboard() {
   const fetchMatches = async () => {
     const { data, error } = await supabase
       .from('matches')
-      .select('*')
-      .eq('status', 'upcoming')
+      .select('*, status, home_score, away_score')
       .order('commence_time', { ascending: true });
     
     if (data) setMatches(data);
@@ -237,121 +238,184 @@ export default function Dashboard() {
       <div className={styles.grid}>
         {/* Sol Taraf: Maçlar ve Tahminler */}
         <div className={styles.section}>
+          
+          <div className={styles.tabsContainer}>
+            <button 
+              className={`${styles.tabBtn} ${activeTab === 'upcoming' ? styles.activeTab : ''}`}
+              onClick={() => setActiveTab('upcoming')}
+            >
+              Yaklaşan Maçlar
+            </button>
+            <button 
+              className={`${styles.tabBtn} ${activeTab === 'completed' ? styles.activeTab : ''}`}
+              onClick={() => setActiveTab('completed')}
+            >
+              Sonuçlanan Maçlar
+            </button>
+          </div>
+
           <h2 className={styles.sectionTitle}>
             <Calendar size={20} /> 
-            {matches.length > 0 ? getRoundName(matches[0].commence_time) : 'Yaklaşan Maçlar'}
+            {activeTab === 'upcoming' 
+              ? (matches.filter(m => m.status === 'upcoming').length > 0 ? getRoundName(matches.filter(m => m.status === 'upcoming')[0].commence_time) : 'Yaklaşan Maçlar')
+              : 'Biten Maçlar ve Skorlar'}
           </h2>
           
           {loading ? (
             <div className={`glass-panel ${styles.emptyState}`}>
               <p>Maçlar yükleniyor...</p>
             </div>
-          ) : matches.length === 0 ? (
-            <div className={`glass-panel ${styles.emptyState}`}>
-              <AlertCircle size={40} style={{ opacity: 0.5, marginBottom: 10 }} />
-              <p>Şu an oynanacak güncel maç bulunmuyor.</p>
-              <p style={{ fontSize: 13, marginTop: 5 }}>API entegrasyonu tamamlandığında maçlar buraya düşecek.</p>
-            </div>
-          ) : (
-            matches
-              .filter(match => getRoundName(match.commence_time) === getRoundName(matches[0].commence_time))
-              .map(match => {
-                const matchStarted = new Date(match.commence_time).getTime() < Date.now();
-                return (
-              <div key={match.id} className={`glass-panel ${styles.matchCard}`}>
-                <div className={styles.matchHeader}>
-                  <span>{getRoundName(match.commence_time)}</span>
-                  <span>{new Date(match.commence_time).toLocaleString('tr-TR', { dateStyle: 'medium', timeStyle: 'short' })}</span>
-                </div>
-                <div className={styles.teams}>
-                  <span>{match.home_team}</span>
-                  <span className={styles.vs}>v</span>
-                  <span>{match.away_team}</span>
-                </div>
-                
-                {savedPredictions[match.id] || matchStarted ? (
-                  <div className={styles.lockedPrediction}>
-                    <div className={styles.lockedHeader} style={{ color: matchStarted && !savedPredictions[match.id] ? '#ff4444' : '' }}>
-                      {matchStarted ? 'MAÇ BAŞLADI - KİLİTLENDİ' : 'TAHMİNİNİZ KAYDEDİLDİ'}
-                    </div>
-                    <div className={styles.lockedBody}>
-                      {savedPredictions[match.id] ? (
-                        <>
-                          <span className={styles.lockedWinner}>
-                            {savedPredictions[match.id].winner === 'Draw' ? 'Beraberlik' : `${savedPredictions[match.id].winner} Kazanır`}
-                          </span>
-                          {savedPredictions[match.id].winner !== 'Draw' && (
-                            <span className={styles.lockedMargin}>{savedPredictions[match.id].margin || 1} Fark</span>
-                          )}
-                        </>
-                      ) : (
-                        <span className={styles.lockedWinner} style={{color: '#ff4444'}}>Tahmin Yapmadınız (0 Puan)</span>
-                      )}
-                    </div>
-                    
-                    {leaguePredictions[match.id] && leaguePredictions[match.id].filter((p: any) => !p.isMe).length > 0 && (
-                      <div className={styles.othersPredictions}>
-                        <div className={styles.othersTitle}>Ligdeki Diğer Tahminler</div>
-                        {leaguePredictions[match.id].filter((p: any) => !p.isMe).map((p: any, i: number) => (
-                          <div key={i} className={styles.otherPredictionItem}>
-                            <div className={styles.otherAvatar}>{p.username.charAt(0).toUpperCase()}</div>
-                            <span className={styles.otherName}>{p.username}</span>
-                            <span className={styles.otherPick}>
-                              {p.winner === 'Draw' ? 'Beraberlik' : `${p.winner} (${p.margin || 1} Fark)`}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+          ) : activeTab === 'upcoming' ? (
+            matches.filter(m => m.status === 'upcoming').length === 0 ? (
+              <div className={`glass-panel ${styles.emptyState}`}>
+                <AlertCircle size={40} style={{ opacity: 0.5, marginBottom: 10 }} />
+                <p>Şu an oynanacak güncel maç bulunmuyor.</p>
+                <p style={{ fontSize: 13, marginTop: 5 }}>Turnuva fikstürü başladığında maçlar buraya düşecek.</p>
+              </div>
+            ) : (
+              matches
+                .filter(m => m.status === 'upcoming')
+                .filter(match => getRoundName(match.commence_time) === getRoundName(matches.filter(m => m.status === 'upcoming')[0].commence_time))
+                .map(match => {
+                  const matchStarted = new Date(match.commence_time).getTime() < Date.now();
+                  return (
+                <div key={match.id} className={`glass-panel ${styles.matchCard}`}>
+                  <div className={styles.matchHeader}>
+                    <span>{getRoundName(match.commence_time)}</span>
+                    <span>{new Date(match.commence_time).toLocaleString('tr-TR', { dateStyle: 'medium', timeStyle: 'short' })}</span>
                   </div>
-                ) : (
-                  <>
-                    <div className={styles.oddsRow}>
-                      <button 
-                        onClick={() => handleSelectWinner(match.id, match.home_team)}
-                        className={`${styles.oddBtn} ${predictions[match.id]?.winner === match.home_team ? styles.selected : ''}`}>
-                        <span className={styles.oddLabel}>MS 1</span>
-                        <span className={styles.oddValue}>{match.home_odds}</span>
-                      </button>
-                      <button 
-                        onClick={() => handleSelectWinner(match.id, 'Draw')}
-                        className={`${styles.oddBtn} ${predictions[match.id]?.winner === 'Draw' ? styles.selected : ''}`}>
-                        <span className={styles.oddLabel}>MS 0</span>
-                        <span className={styles.oddValue}>{match.draw_odds}</span>
-                      </button>
-                      <button 
-                        onClick={() => handleSelectWinner(match.id, match.away_team)}
-                        className={`${styles.oddBtn} ${predictions[match.id]?.winner === match.away_team ? styles.selected : ''}`}>
-                        <span className={styles.oddLabel}>MS 2</span>
-                        <span className={styles.oddValue}>{match.away_odds}</span>
-                      </button>
-                    </div>
-
-                    {/* Skor / Fark Seçici */}
-                    {predictions[match.id] && predictions[match.id].winner !== 'Draw' && (
-                      <div className={styles.marginSelector}>
-                        <span className={styles.marginLabel}>Kaç Farkla Kazanır?</span>
-                        <div className={styles.marginButtons}>
-                          {[1, 2, 3, 4, 5].map(num => (
-                            <button 
-                              key={num}
-                              onClick={() => handleSelectMargin(match.id, num)}
-                              className={`${styles.marginBtn} ${predictions[match.id].margin === num ? styles.selectedMargin : ''}`}
-                            >
-                              {num} Fark
-                            </button>
+                  <div className={styles.teams}>
+                    <span>{match.home_team}</span>
+                    <span className={styles.vs}>v</span>
+                    <span>{match.away_team}</span>
+                  </div>
+                  
+                  {savedPredictions[match.id] || matchStarted ? (
+                    <div className={styles.lockedPrediction}>
+                      <div className={styles.lockedHeader} style={{ color: matchStarted && !savedPredictions[match.id] ? '#ff4444' : '' }}>
+                        {matchStarted ? 'MAÇ BAŞLADI - KİLİTLENDİ' : 'TAHMİNİNİZ KAYDEDİLDİ'}
+                      </div>
+                      <div className={styles.lockedBody}>
+                        {savedPredictions[match.id] ? (
+                          <>
+                            <span className={styles.lockedWinner}>
+                              {savedPredictions[match.id].winner === 'Draw' ? 'Beraberlik' : `${savedPredictions[match.id].winner} Kazanır`}
+                            </span>
+                            {savedPredictions[match.id].winner !== 'Draw' && (
+                              <span className={styles.lockedMargin}>{savedPredictions[match.id].margin || 1} Fark</span>
+                            )}
+                          </>
+                        ) : (
+                          <span className={styles.lockedWinner} style={{color: '#ff4444'}}>Tahmin Yapmadınız (0 Puan)</span>
+                        )}
+                      </div>
+                      
+                      {leaguePredictions[match.id] && leaguePredictions[match.id].filter((p: any) => !p.isMe).length > 0 && (
+                        <div className={styles.othersPredictions}>
+                          <div className={styles.othersTitle}>Ligdeki Diğer Tahminler</div>
+                          {leaguePredictions[match.id].filter((p: any) => !p.isMe).map((p: any, i: number) => (
+                            <div key={i} className={styles.otherPredictionItem}>
+                              <div className={styles.otherAvatar}>{p.username.charAt(0).toUpperCase()}</div>
+                              <span className={styles.otherName}>{p.username}</span>
+                              <span className={styles.otherPick}>
+                                {p.winner === 'Draw' ? 'Beraberlik' : `${p.winner} (${p.margin || 1} Fark)`}
+                              </span>
+                            </div>
                           ))}
                         </div>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <div className={styles.oddsRow}>
+                        <button 
+                          onClick={() => handleSelectWinner(match.id, match.home_team)}
+                          className={`${styles.oddBtn} ${predictions[match.id]?.winner === match.home_team ? styles.selected : ''}`}>
+                          <span className={styles.oddLabel}>MS 1</span>
+                          <span className={styles.oddValue}>{match.home_odds}</span>
+                        </button>
+                        <button 
+                          onClick={() => handleSelectWinner(match.id, 'Draw')}
+                          className={`${styles.oddBtn} ${predictions[match.id]?.winner === 'Draw' ? styles.selected : ''}`}>
+                          <span className={styles.oddLabel}>MS 0</span>
+                          <span className={styles.oddValue}>{match.draw_odds}</span>
+                        </button>
+                        <button 
+                          onClick={() => handleSelectWinner(match.id, match.away_team)}
+                          className={`${styles.oddBtn} ${predictions[match.id]?.winner === match.away_team ? styles.selected : ''}`}>
+                          <span className={styles.oddLabel}>MS 2</span>
+                          <span className={styles.oddValue}>{match.away_odds}</span>
+                        </button>
                       </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )})
+
+                      {/* Skor / Fark Seçici */}
+                      {predictions[match.id] && predictions[match.id].winner !== 'Draw' && (
+                        <div className={styles.marginSelector}>
+                          <span className={styles.marginLabel}>Kaç Farkla Kazanır?</span>
+                          <div className={styles.marginButtons}>
+                            {[1, 2, 3, 4, 5].map(num => (
+                              <button 
+                                key={num}
+                                onClick={() => handleSelectMargin(match.id, num)}
+                                className={`${styles.marginBtn} ${predictions[match.id].margin === num ? styles.selectedMargin : ''}`}
+                              >
+                                {num} Fark
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )})
+            )
+          ) : (
+            // BİTEN MAÇLAR SEKMESİ
+            matches.filter(m => m.status === 'completed').length === 0 ? (
+               <div className={`glass-panel ${styles.emptyState}`}>
+                 <p>Henüz sonuçlanan bir maç bulunmuyor.</p>
+               </div>
+            ) : (
+              matches
+                .filter(m => m.status === 'completed')
+                .reverse() // En son biten en üstte görünsün
+                .map(match => (
+                <div key={match.id} className={`glass-panel ${styles.matchCard}`}>
+                  <div className={styles.matchHeader}>
+                    <span>{getRoundName(match.commence_time)} (Maç Sonucu)</span>
+                    <span>{new Date(match.commence_time).toLocaleString('tr-TR', { dateStyle: 'medium' })}</span>
+                  </div>
+                  <div className={styles.teams}>
+                    <span>{match.home_team}</span>
+                    <span className={styles.score}>{(match as any).home_score ?? '-'} - {(match as any).away_score ?? '-'}</span>
+                    <span>{match.away_team}</span>
+                  </div>
+                  
+                  <div className={styles.othersPredictions} style={{marginTop: '20px'}}>
+                     <div className={styles.othersTitle} style={{textAlign: 'center', marginBottom: '15px'}}>Ligdeki Tahminler ve Puanlar</div>
+                     {leaguePredictions[match.id] ? [...leaguePredictions[match.id]].sort((a,b) => (b.points||0) - (a.points||0)).map((p: any, i: number) => (
+                       <div key={i} className={styles.otherPredictionItem} style={{background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '8px', marginBottom: '8px'}}>
+                         <div className={styles.otherAvatar}>{p.username.charAt(0).toUpperCase()}</div>
+                         <span className={styles.otherName}>{p.username} {p.isMe && '(Sen)'}</span>
+                         <span className={styles.otherPick}>
+                           {p.winner === 'Draw' ? 'Beraberlik' : `${p.winner} (${p.margin || 1} Fark)`}
+                         </span>
+                         <span className={styles.pointsBadge} style={{ color: p.points > 0 ? '#4ade80' : '#ff4444', fontWeight: 'bold' }}>
+                           {p.points > 0 ? `+${p.points} Puan` : '0 Puan'}
+                         </span>
+                       </div>
+                     )) : (
+                       <div style={{opacity: 0.5, fontSize: 13, marginTop: 10, textAlign: 'center'}}>Bu maç için liginizde kimse tahmin yapmamış.</div>
+                     )}
+                  </div>
+                </div>
+              ))
+            )
           )}
 
           {/* Toplu Kaydetme Butonu */}
-          {matches.length > 0 && (
+          {activeTab === 'upcoming' && matches.filter(m => m.status === 'upcoming').length > 0 && (
             <div className={`glass-panel ${styles.saveAction}`}>
               <button onClick={handleSavePredictions} disabled={saving} className={`btn-primary ${styles.saveBtn}`}>
                 {saving ? 'Kaydediliyor...' : 'Tahminlerimi Onayla ve Kaydet'}
