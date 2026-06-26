@@ -14,6 +14,9 @@ interface Match {
   home_odds: number;
   away_odds: number;
   draw_odds: number;
+  status?: string;
+  home_score?: number;
+  away_score?: number;
 }
 
 const getRoundName = (dateStr: string) => {
